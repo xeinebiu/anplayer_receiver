@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AN Player</title>
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+
+    <script type="text/javascript">
+        (function redirectConsoleToOverlay() {
+            let logBuffer = [];
+
+            const originalLog = console.log;
+            const originalError = console.error;
+
+            // Override console.log
+            console.log = function (message) {
+                originalLog(message);
+                logBuffer.push(`LOG: ${message}\n`);
+                flushLogs();
+            };
+
+            console.error = function (message) {
+                originalError(message);
+                logBuffer.push(`ERROR: ${message}\n`);
+                flushLogs();
+            };
+
+            function flushLogs() {
+                const logContent = document.getElementById("logContent");
+                if (logContent) {
+                    logBuffer.forEach(log => {
+                        logContent.textContent += log;
+                        logContent.scrollTop = logContent.scrollHeight;
+                    });
+                    logBuffer = [];
+                }
+            }
+        })();
+    </script>
+
+
+    <script>
+        let globalHttpHeaders;
+    </script>
+
+    <script type="text/javascript">
+
+        (function supportHttpHeaders() {
+            console.log("supportHttpHeaders XMLHttpRequest");
+
+            const originalOpen = XMLHttpRequest.prototype.open;
+            const originalSend = XMLHttpRequest.prototype.send;
+
+            XMLHttpRequest.prototype.open = function (method, url, async, user, password) {
+                originalOpen.apply(this, arguments); // Call the original open method
+            };
+
+            XMLHttpRequest.prototype.send = function (body) {
+                if (globalHttpHeaders) {
+                    console.log("set headers");
+                    for (let key in globalHttpHeaders) {
+                        console.log("set header key", key);
+                        this.setRequestHeader(key, globalHttpHeaders[key])
+                    }
+                } else {
+                    console.log("no headers");
+                }
+
+                // Proceed with the original send method
+                originalSend.call(this, body);
+            };
+        })();
+    </script>
+
+    <script type="text/javascript">
+        (function supportHttpHeaders() {
+            console.log("supportHttpHeaders fetch");
+
+            // Save the original fetch function
+            const originalFetch = window.fetch;
+
+            // Override the fetch function
+            window.fetch = async function (url, options = {}) {
+                console.log("fetch " + url);
+
+                // If options.headers is undefined, initialize it as an empty object
+                options.headers = options.headers || {};
+
+                if (globalHttpHeaders) {
+                    console.log("Setting headers for fetch");
+                    // Add global headers to the request
+                    for (let key in globalHttpHeaders) {
+                        console.log("Setting header", key);
+                        options.headers[key] = globalHttpHeaders[key];
+                    }
+                } else {
+                    console.log("No headers to set");
+                }
+
+                // Call the original fetch function with the modified options
+                return originalFetch(url, options);
+            };
+        })();
+    </script>
+
+
+    <script type="text/javascript"
+            src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js">
+    </script>
+    <style>
+        /* Style for the overlay */
+        #logOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: block; /* Always visible by default */
+        }
+
+        #logOverlay pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+<cast-media-player></cast-media-player>
+
+<!-- Log overlay container -->
+<div id="logOverlay" style="display: none;">
+    <h1>Logs and Errors</h1>
+    <pre id="logContent"></pre>
+</div>
+
+<script>
+    const context = cast.framework.CastReceiverContext.getInstance();
+    const playerManager = context.getPlayerManager();
+
+    playerManager.setMediaPlaybackInfoHandler((loadRequest) => {
+        console.log(`Custom Data: ${JSON.stringify(loadRequest.media.customData)}`);
+        return loadRequest;
+    });
+
+    context.start();
+</script>
+
+</body>
+</html>
